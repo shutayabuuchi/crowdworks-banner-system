@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Banner AI — クラウドワークス自動生成</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- ===== Sidebar ===== -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="32" height="32" rx="8" fill="url(#lg1)"/>
+          <rect x="6" y="6" width="8.5" height="8.5" rx="2" fill="white" opacity="0.95"/>
+          <rect x="17.5" y="6" width="8.5" height="8.5" rx="2" fill="white" opacity="0.55"/>
+          <rect x="6" y="17.5" width="8.5" height="8.5" rx="2" fill="white" opacity="0.55"/>
+          <rect x="17.5" y="17.5" width="8.5" height="8.5" rx="2" fill="white" opacity="0.95"/>
+          <defs>
+            <linearGradient id="lg1" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#6366f1"/>
+              <stop offset="1" stop-color="#8b5cf6"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <div class="sidebar-logo-text">
+          <div class="sidebar-logo-name">Banner AI</div>
+          <div class="sidebar-subtitle">クラウドワークス自動化</div>
+        </div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-label">メニュー</div>
+
+      <div class="nav-item active" data-tab="jobs">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="7" width="20" height="14" rx="2"/>
+          <path stroke-linecap="round" d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
+        </svg>
+        ジョブ一覧
+        <span class="nav-item-badge" id="navJobCount">0</span>
+      </div>
+
+      <div class="nav-item" data-tab="banners">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 15l-5-5L5 21"/>
+        </svg>
+        バナー管理
+      </div>
+
+      <div class="nav-item" data-tab="applications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+        </svg>
+        応募文生成
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-stack">
+        <div class="sidebar-stack-item">
+          <span class="sidebar-stack-dot"></span>Claude (分析・応募文)
+        </div>
+        <div class="sidebar-stack-item">
+          <span class="sidebar-stack-dot" style="background:#10b981"></span>Gemini (プロンプト)
+        </div>
+        <div class="sidebar-stack-item">
+          <span class="sidebar-stack-dot" style="background:#f59e0b"></span>DALL-E 3 (バナー)
+        </div>
+        <div class="sidebar-stack-item">
+          <span class="sidebar-stack-dot" style="background:#06b6d4"></span>Supabase (DB)
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===== Main Content ===== -->
+  <div class="main-content">
+
+    <!-- Top Bar -->
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <span class="top-bar-title" id="topBarTitle">ジョブ一覧</span>
+      </div>
+      <div class="top-bar-actions">
+        <button class="btn btn-secondary btn-sm" id="btnRefresh">
+          <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg>
+          更新
+        </button>
+        <button class="btn btn-primary" id="btnScrape">
+          <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+          スクレイプ開始
+        </button>
+      </div>
+    </header>
+
+    <!-- Content Area -->
+    <div class="content-area">
+
+      <!-- ===== Tab: Jobs ===== -->
+      <div class="tab-panels active" id="tab-jobs">
+
+        <!-- Demo Mode Banner -->
+        <div class="demo-banner" id="demoBanner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          デモモード表示中 — バックエンドに接続すると実際のデータが表示されます。
+        </div>
+
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+          <div class="stat-card">
+            <div class="stat-icon stat-icon-indigo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
+            </div>
+            <div class="stat-info">
+              <div class="stat-label">総ジョブ数</div>
+              <div class="stat-value" id="statTotal">—</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon stat-icon-green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div class="stat-info">
+              <div class="stat-label">処理済み</div>
+              <div class="stat-value" id="statProcessed">—</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon stat-icon-yellow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+            </div>
+            <div class="stat-info">
+              <div class="stat-label">バナー生成済み</div>
+              <div class="stat-value" id="statBanners">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Job List Section -->
+        <div class="section-header">
+          <div>
+            <div class="section-title">案件一覧</div>
+            <div class="section-subtitle">クラウドワークスから取得したバナー・デザイン案件</div>
+          </div>
+        </div>
+
+        <div class="job-list" id="jobList">
+          <div class="loading-overlay">
+            <span class="spinner spinner-lg"></span>
+            <span class="loading-text">読み込み中...</span>
+          </div>
+        </div>
+
+      </div><!-- /tab-jobs -->
+
+      <!-- ===== Tab: Banners ===== -->
+      <div class="tab-panels" id="tab-banners">
+
+        <div class="section-header" style="margin-bottom:16px">
+          <div>
+            <div class="section-title">バナー管理</div>
+            <div class="section-subtitle">生成されたバナーの確認・承認・却下</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-body" style="padding:16px 20px; display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:200px;">
+              <label class="form-label">ジョブを選択</label>
+              <select id="bannerJobSelect">
+                <option value="">-- ジョブを選択 --</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div id="bannerGrid">
+          <div class="empty-state">
+            <div class="empty-state-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/>
+              </svg>
+            </div>
+            <div class="empty-state-title">ジョブを選択してください</div>
+            <div class="empty-state-desc">上のセレクトボックスからジョブを選ぶと、そのジョブのバナーが表示されます。</div>
+          </div>
+        </div>
+
+      </div><!-- /tab-banners -->
+
+      <!-- ===== Tab: Applications ===== -->
+      <div class="tab-panels" id="tab-applications">
+
+        <div class="section-header" style="margin-bottom:16px">
+          <div>
+            <div class="section-title">応募文生成</div>
+            <div class="section-subtitle">承認したバナーをもとにクラウドワークス応募文を自動生成</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-header">
+            <span class="card-title">生成設定</span>
+          </div>
+          <div class="card-body">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:18px;">
+              <div>
+                <label class="form-label">対象ジョブ</label>
+                <select id="appJobSelect">
+                  <option value="">-- ジョブを選択 --</option>
+                </select>
+              </div>
+              <div>
+                <label class="form-label">使用するバナー</label>
+                <select id="appBannerSelect">
+                  <option value="">-- バナーを選択 --</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn btn-primary" id="btnGenAppText">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 13V5a2 2 0 00-2-2H4a2 2 0 00-2 2v8a2 2 0 002 2h3l3 3 3-3h3a2 2 0 002-2zM5 7a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1zm1 3a1 1 0 000 2h3a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>
+              Claude で応募文を生成
+            </button>
+          </div>
+        </div>
+
+        <div id="appTextContainer" style="display:none">
+          <div class="app-text-container">
+            <div class="app-text-header">
+              <span style="font-size:13px; font-weight:700; color:var(--gray-700);">生成された応募文</span>
+              <button class="btn btn-secondary btn-sm" id="btnCopyAppText">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"/><path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"/></svg>
+                コピー
+              </button>
+            </div>
+            <div class="app-text-body" id="appTextContent"></div>
+          </div>
+        </div>
+
+        <div id="appTextEmpty" style="display:block">
+          <div class="empty-state">
+            <div class="empty-state-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z"/>
+              </svg>
+            </div>
+            <div class="empty-state-title">応募文がまだありません</div>
+            <div class="empty-state-desc">ジョブとバナーを選択して「Claude で応募文を生成」ボタンをクリックしてください。</div>
+          </div>
+        </div>
+
+      </div><!-- /tab-applications -->
+
+    </div><!-- /content-area -->
+  </div><!-- /main-content -->
+
+</div><!-- /app-layout -->
+
+<!-- ===== Job Detail Panel ===== -->
+<div class="overlay" id="overlay"></div>
+<div class="detail-panel" id="detailPanel">
+  <div class="detail-panel-header">
+    <div style="flex:1; min-width:0;">
+      <div class="detail-panel-eyebrow">案件詳細</div>
+      <div class="detail-panel-title" id="detailTitle">タイトル</div>
+    </div>
+    <button class="btn btn-ghost btn-icon" id="btnCloseDetail" aria-label="閉じる">
+      <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+    </button>
+  </div>
+
+  <div class="detail-panel-body">
+
+    <div class="detail-section">
+      <div class="detail-section-title">URL</div>
+      <div class="detail-field" id="detailUrl" style="font-size:12px; overflow-wrap:anywhere;"></div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
+      <div class="detail-section" style="margin:0">
+        <div class="detail-section-title">報酬</div>
+        <div class="detail-field" id="detailReward"></div>
+      </div>
+      <div class="detail-section" style="margin:0">
+        <div class="detail-section-title">締め切り</div>
+        <div class="detail-field" id="detailDeadline"></div>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">クライアント</div>
+      <div class="detail-field" id="detailClient"></div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">案件説明</div>
+      <div class="detail-field" id="detailDesc" style="max-height:200px; overflow-y:auto; white-space:pre-wrap;"></div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">必要スキル</div>
+      <div class="tag-list" id="detailRequirements"></div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">添付ファイル</div>
+      <div class="tag-list" id="detailAttachments"></div>
+    </div>
+
+    <!-- Pipeline Steps -->
+    <div class="divider"></div>
+    <div style="font-size:11px; font-weight:700; color:var(--gray-400); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.08em;">自動化パイプライン</div>
+    <div class="pipeline">
+      <div class="pipeline-step" id="step-analyze">
+        <span class="step-icon">
+          <svg viewBox="0 0 14 14" fill="currentColor"><path d="M7 1a6 6 0 100 12A6 6 0 007 1zm0 11A5 5 0 117 2a5 5 0 010 10zm-.5-8.5a.5.5 0 011 0v3.25l2.146 2.146a.5.5 0 01-.707.708L6.647 7.301A.5.5 0 016.5 6.95V3.5z"/></svg>
+        </span>
+        Claude 分析
+      </div>
+      <span class="pipeline-arrow">→</span>
+      <div class="pipeline-step" id="step-prompts">
+        <span class="step-icon">
+          <svg viewBox="0 0 14 14" fill="currentColor"><path d="M7 1a6 6 0 100 12A6 6 0 007 1zm0 11A5 5 0 117 2a5 5 0 010 10zm-.5-8.5a.5.5 0 011 0v3.25l2.146 2.146a.5.5 0 01-.707.708L6.647 7.301A.5.5 0 016.5 6.95V3.5z"/></svg>
+        </span>
+        Gemini プロンプト
+      </div>
+      <span class="pipeline-arrow">→</span>
+      <div class="pipeline-step" id="step-banners">
+        <span class="step-icon">
+          <svg viewBox="0 0 14 14" fill="currentColor"><path d="M7 1a6 6 0 100 12A6 6 0 007 1zm0 11A5 5 0 117 2a5 5 0 010 10zm-.5-8.5a.5.5 0 011 0v3.25l2.146 2.146a.5.5 0 01-.707.708L6.647 7.301A.5.5 0 016.5 6.95V3.5z"/></svg>
+        </span>
+        DALL-E 3 バナー
+      </div>
+    </div>
+
+  </div><!-- /detail-panel-body -->
+
+  <div class="detail-panel-footer">
+    <button class="btn btn-primary full-width btn-lg" id="btnRunPipeline">
+      <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/></svg>
+      分析 → プロンプト → バナー生成
+    </button>
+    <button class="btn btn-ghost full-width" onclick="closeDetailPanel()">閉じる</button>
+  </div>
+</div>
+
+<!-- ===== Image Modal ===== -->
+<div class="img-modal" id="imgModal">
+  <button class="img-modal-close" id="imgModalClose" aria-label="閉じる">
+    <svg viewBox="0 0 20 20" fill="currentColor" style="width:18px;height:18px"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+  </button>
+  <img id="imgModalImg" alt="Banner preview" />
+</div>
+
+<!-- ===== Toast Container ===== -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
