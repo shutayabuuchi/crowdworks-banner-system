@@ -61,3 +61,5 @@ git push -u origin main
 - Supabaseテストプロジェクト: `develop` のデプロイ先だけに設定
 
 Renderを使う場合は、同じGitHubリポジトリからWeb Serviceを2つ作ります。片方は `develop` ブランチを指定してstaging用環境変数を入れ、もう片方は `main` ブランチを指定してproduction用環境変数を入れます。
+
+Vercelを使う場合も、同じGitHubリポジトリからVercel Projectを2つ作るのがおすすめです。片方はProduction Branchを `develop` にしてstaging用環境変数を入れ、もう片方はProduction Branchを `main` にしてproduction用環境変数を入れます。
