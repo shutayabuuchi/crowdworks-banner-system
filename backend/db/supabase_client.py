@@ -68,8 +68,15 @@ def update_prompt(prompt_id: str, text_prompt: str) -> dict:
     return result.data[0] if result.data else {}
 
 
+def delete_banners_for_job(job_id: str):
+    client = get_client()
+    client.table("banners").delete().eq("job_id", job_id).execute()
+
+
 def delete_prompts_for_job(job_id: str):
     client = get_client()
+    # Banners must be deleted first (FK: banners.prompt_id → prompts.prompt_id)
+    delete_banners_for_job(job_id)
     client.table("prompts").delete().eq("job_id", job_id).execute()
 
 

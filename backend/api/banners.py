@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from backend.modules.banner_generator import generate_banners_for_job
 from backend.db.supabase_client import (
-    get_analyzed_job, get_prompts_for_job, get_banners_for_job, update_banner_status
+    get_analyzed_job, get_prompts_for_job, get_banners_for_job,
+    update_banner_status, delete_banners_for_job,
 )
 from backend.models.schemas import BannerStatusUpdate
 
@@ -24,6 +25,8 @@ async def generate_banners(request: dict):
         raise HTTPException(status_code=404, detail="No prompts found. Run /prompts/generate first.")
 
     try:
+        # Remove previous banners so regeneration always gives a clean result
+        delete_banners_for_job(job_id)
         banners = generate_banners_for_job(job_id, prompts, analyzed.get("banner_size", "1200x628"))
         return banners
     except Exception as e:
