@@ -149,6 +149,18 @@
           </div>
         </div>
 
+        <div class="bulk-actions" id="bulkActions">
+          <label class="bulk-check">
+            <input type="checkbox" id="selectVisibleJobs">
+            <span>表示中を選択</span>
+          </label>
+          <div class="bulk-summary"><span id="selectedJobCount">0</span>件選択中</div>
+          <button class="btn btn-primary btn-sm" id="btnBulkGenerate" disabled>
+            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v1.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 6H8a1 1 0 110 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm12 9a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 110-2h2.001a5.002 5.002 0 00-8.717-1.333 1 1 0 11-1.885-.666A7.002 7.002 0 0114.001 14H12a1 1 0 110-2h4z" clip-rule="evenodd"/></svg>
+            選択した案件を一括生成
+          </button>
+        </div>
+
         <div class="job-list" id="jobList">
           <div class="loading-state">
             <span class="spinner spinner-lg"></span>

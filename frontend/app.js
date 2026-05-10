@@ -49,6 +49,7 @@ const DEMO_JOBS = [
 const state = {
   jobs: [],
   filteredJobs: [],
+  selectedJobIds: new Set(),
   selectedJob: null,
   analyzedJob: null,
   banners: [],
@@ -105,11 +106,12 @@ function showToast(type, title, message = '', duration = 4000) {
 /* ===== Button loading helper ===== */
 function btnLoading(btn, on, text) {
   if (on) {
-    btn.dataset.orig = btn.innerHTML;
+    if (!btn.dataset.orig) btn.dataset.orig = btn.innerHTML;
     btn.innerHTML = `<span class="spinner"></span> ${text || '処理中...'}`;
     btn.disabled = true;
   } else {
     btn.innerHTML = btn.dataset.orig || btn.innerHTML;
+    delete btn.dataset.orig;
     btn.disabled = false;
   }
 }
@@ -130,6 +132,7 @@ async function loadJobs() {
   try {
     const jobs = await fetchJobs();
     state.jobs = jobs;
+    state.selectedJobIds = new Set([...state.selectedJobIds].filter(id => jobs.some(j => j.job_id === id)));
     state.demoMode = false;
     document.getElementById('demoBanner').style.display = 'none';
   } catch (_) {
@@ -139,6 +142,7 @@ async function loadJobs() {
   }
   applyJobFilter();
   updateStats(state.jobs);
+  updateBulkActions();
   document.getElementById('navJobCount').textContent = state.jobs.length;
 }
 
@@ -199,8 +203,13 @@ function renderJobList(jobs) {
   el.innerHTML = jobs.map(job => {
     const bannerCount = getBannerCount(job);
     const jobUrl = job.url && job.url !== '#' ? job.url : '';
+    const checked = state.selectedJobIds.has(job.job_id) ? 'checked' : '';
     return `
-      <div class="job-card${state.selectedJob?.job_id === job.job_id ? ' selected' : ''}" onclick="selectJob('${job.job_id}')">
+      <div class="job-card${state.selectedJob?.job_id === job.job_id ? ' selected' : ''}${checked ? ' queued' : ''}" onclick="selectJob('${job.job_id}')">
+        <label class="job-select" onclick="event.stopPropagation();" title="一括生成に含める">
+          <input type="checkbox" ${checked} onchange="toggleJobSelection('${job.job_id}', this.checked)">
+          <span></span>
+        </label>
         <div class="job-card-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path stroke-linecap="round" d="M3 9h18M9 21V9"/></svg>
         </div>
@@ -222,10 +231,14 @@ function renderJobList(jobs) {
         <div class="job-card-actions">
           <span class="badge ${job.processed ? 'badge-processed' : 'badge-pending'}">${job.processed ? '処理済み' : '未処理'}</span>
           ${bannerCount > 0 ? `<span class="badge badge-new">${bannerCount} バナー</span>` : ''}
-          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openJobDetail('${job.job_id}')">詳細</button>
+          <button class="btn btn-detail btn-sm" onclick="event.stopPropagation();openJobDetail('${job.job_id}')">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a7 7 0 100 14 7 7 0 000-14zM9 8a1 1 0 112 0v5a1 1 0 11-2 0V8zm1-3a1.25 1.25 0 100 2.5A1.25 1.25 0 0010 5z"/></svg>
+            詳細
+          </button>
         </div>
       </div>`;
   }).join('');
+  updateBulkActions();
 }
 
 function selectJob(jobId) {
@@ -277,6 +290,40 @@ function showDetailPanel(job) {
 function closeDetailPanel() {
   document.getElementById('overlay').classList.remove('show');
   document.getElementById('detailPanel').classList.remove('open');
+}
+
+function toggleJobSelection(jobId, checked) {
+  if (checked) {
+    state.selectedJobIds.add(jobId);
+  } else {
+    state.selectedJobIds.delete(jobId);
+  }
+  updateBulkActions();
+  renderJobList(state.filteredJobs);
+}
+
+function toggleVisibleJobs(checked) {
+  state.filteredJobs.forEach(job => {
+    if (checked) state.selectedJobIds.add(job.job_id);
+    else state.selectedJobIds.delete(job.job_id);
+  });
+  updateBulkActions();
+  renderJobList(state.filteredJobs);
+}
+
+function updateBulkActions() {
+  const count = state.selectedJobIds.size;
+  const countEl = document.getElementById('selectedJobCount');
+  const btn = document.getElementById('btnBulkGenerate');
+  const selectVisible = document.getElementById('selectVisibleJobs');
+  if (countEl) countEl.textContent = count;
+  if (btn) btn.disabled = count === 0;
+  if (selectVisible) {
+    const visibleIds = state.filteredJobs.map(job => job.job_id);
+    const selectedVisible = visibleIds.filter(id => state.selectedJobIds.has(id)).length;
+    selectVisible.checked = visibleIds.length > 0 && selectedVisible === visibleIds.length;
+    selectVisible.indeterminate = selectedVisible > 0 && selectedVisible < visibleIds.length;
+  }
 }
 
 async function startScrape() {
@@ -337,6 +384,45 @@ async function runFullPipeline(jobId) {
     showToast('error', 'パイプラインエラー', e.message);
   } finally {
     btnLoading(btn, false);
+  }
+}
+
+async function runBulkPipeline() {
+  const ids = [...state.selectedJobIds].filter(id => state.jobs.some(job => job.job_id === id));
+  if (ids.length === 0) {
+    showToast('warning', '案件を選択してください');
+    return;
+  }
+
+  const btn = document.getElementById('btnBulkGenerate');
+  btnLoading(btn, true, `0/${ids.length} 生成中...`);
+  const failures = [];
+
+  for (let i = 0; i < ids.length; i++) {
+    const jobId = ids[i];
+    const job = state.jobs.find(j => j.job_id === jobId);
+    btnLoading(btn, true, `${i + 1}/${ids.length} 生成中...`);
+    showToast('info', `一括生成 ${i + 1}/${ids.length}`, job?.title || jobId, 2500);
+    try {
+      const analyzed = await analyzeJob(jobId);
+      await generatePrompts(analyzed);
+      await generateBanners(jobId);
+      state.selectedJobIds.delete(jobId);
+    } catch (e) {
+      failures.push(`${job?.title || jobId}: ${e.message}`);
+    }
+  }
+
+  btnLoading(btn, false);
+  await loadJobs();
+  populateBannerJobSelect();
+
+  if (failures.length) {
+    showToast('warning', '一括生成が一部失敗しました', `${ids.length - failures.length}件完了 / ${failures.length}件失敗`, 7000);
+    console.warn('Bulk generation failures:', failures);
+  } else {
+    showToast('success', '一括生成完了', `${ids.length}件のバナー生成まで完了しました。`);
+    switchTab('banners');
   }
 }
 
@@ -591,6 +677,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Top bar buttons
   document.getElementById('btnScrape').addEventListener('click', startScrape);
   document.getElementById('btnRefresh').addEventListener('click', loadJobs);
+  document.getElementById('btnBulkGenerate').addEventListener('click', runBulkPipeline);
+  document.getElementById('selectVisibleJobs').addEventListener('change', e => toggleVisibleJobs(e.target.checked));
 
   // Detail panel
   document.getElementById('btnCloseDetail').addEventListener('click', closeDetailPanel);
