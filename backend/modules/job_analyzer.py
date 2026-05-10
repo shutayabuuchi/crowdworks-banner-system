@@ -60,6 +60,28 @@ def _banner_size(value) -> str:
     return text or "1200x628"
 
 
+def _extract_json(text: str) -> dict:
+    """Safely extract a JSON object from Claude's response text."""
+    start = text.find("{")
+    end = text.rfind("}") + 1
+    if start == -1 or end <= start:
+        raise ValueError(f"No JSON object found in response (first 300 chars): {text[:300]}")
+    try:
+        return json.loads(text[start:end])
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Malformed JSON from Claude: {e} — snippet: {text[start:start+200]}")
+
+
+def _get_text_from_claude(response) -> str:
+    """Safely extract text from a Claude API response."""
+    if not response.content:
+        raise ValueError("Claude returned an empty response")
+    block = response.content[0]
+    if not hasattr(block, "text"):
+        raise ValueError(f"Unexpected Claude response block type: {type(block).__name__}")
+    return block.text.strip()
+
+
 def analyze_job(job_id: str) -> dict:
     """Analyze a job and return AnalyzedJob data."""
     job = get_job(job_id)
@@ -79,13 +101,9 @@ def analyze_job(job_id: str) -> dict:
         messages=[{"role": "user", "content": prompt}],
     )
 
-    text = response.content[0].text.strip()
-    # Extract JSON from response
-    start = text.find("{")
-    end = text.rfind("}") + 1
-    analysis = json.loads(text[start:end])
+    text = _get_text_from_claude(response)
+    analysis = _extract_json(text)
 
-    # Download attachments and upload to Supabase storage
     downloaded_assets = []
     for attachment in job.get("attachments", [])[:5]:
         asset = download_and_store_asset(attachment, job_id)
@@ -99,12 +117,12 @@ def analyze_job(job_id: str) -> dict:
         "purpose": _as_text(analysis.get("purpose"), "商品・サービスのプロモーション"),
         "target_audience": _as_text(analysis.get("target_audience"), "一般ユーザー"),
         "product_or_service": _as_text(analysis.get("product_or_service"), ""),
-        "brand_colors": analysis.get("brand_colors", []),
-        "key_phrases": analysis.get("key_phrases", []),
-        "visual_elements": analysis.get("visual_elements", []),
-        "logo_required": analysis.get("logo_required", False),
+        "brand_colors": analysis.get("brand_colors") if isinstance(analysis.get("brand_colors"), list) else [],
+        "key_phrases": analysis.get("key_phrases") if isinstance(analysis.get("key_phrases"), list) else [],
+        "visual_elements": analysis.get("visual_elements") if isinstance(analysis.get("visual_elements"), list) else [],
+        "logo_required": bool(analysis.get("logo_required", False)),
         "style_notes": _as_text(analysis.get("style_notes"), ""),
-        "forbidden_elements": analysis.get("forbidden_elements", []),
+        "forbidden_elements": analysis.get("forbidden_elements") if isinstance(analysis.get("forbidden_elements"), list) else [],
         "downloaded_assets": downloaded_assets,
     }
 
@@ -143,8 +161,9 @@ def download_and_store_asset(attachment: dict, job_id: str):
 
 def extract_text_from_image(image_data: bytes, content_type: str):
     """Use Claude vision to extract text from image."""
+    SUPPORTED = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+    media_type = content_type if content_type in SUPPORTED else "image/jpeg"
     try:
-        media_type = content_type if content_type in ["image/jpeg", "image/png", "image/gif", "image/webp"] else "image/jpeg"
         b64 = base64.standard_b64encode(image_data).decode("utf-8")
         response = claude.messages.create(
             model="claude-haiku-4-5-20251001",
@@ -157,7 +176,7 @@ def extract_text_from_image(image_data: bytes, content_type: str):
                 ],
             }],
         )
-        return response.content[0].text.strip()
+        return _get_text_from_claude(response)
     except Exception as e:
         print(f"[Analyzer] OCR failed: {e}")
         return None

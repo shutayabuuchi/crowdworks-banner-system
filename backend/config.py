@@ -14,7 +14,14 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 CROWDWORKS_COOKIE = os.getenv("CROWDWORKS_COOKIE", "")
 APP_HOST = os.getenv("APP_HOST", "0.0.0.0")
-APP_PORT = int(os.getenv("APP_PORT", "8000"))
+
+def _int_env(key: str, default: int) -> int:
+    try:
+        return int(os.getenv(key, str(default)))
+    except ValueError:
+        return default
+
+APP_PORT = _int_env("APP_PORT", 8000)
 CORS_ORIGINS = [
     origin.strip()
     for origin in os.getenv("CORS_ORIGINS", "http://localhost:8000,http://127.0.0.1:8000").split(",")
@@ -23,11 +30,10 @@ CORS_ORIGINS = [
 
 CROWDWORKS_BASE_URL = "https://crowdworks.jp"
 CROWDWORKS_SEARCH_URL = "https://crowdworks.jp/public/jobs/search"
-# Category IDs for banner/logo design on Crowdworks
 BANNER_CATEGORY_PARAMS = {
-    "category_id": "18",  # デザイン > ロゴ・バナー・イラスト > バナー作成・バナーデザイン
+    "category_id": "18",
     "payment_type": "competition",
     "order": "new",
     "keep_search_criteria": "true",
 }
-SCRAPE_INTERVAL_SECONDS = int(os.getenv("SCRAPE_INTERVAL_SECONDS", "0"))
+SCRAPE_INTERVAL_SECONDS = _int_env("SCRAPE_INTERVAL_SECONDS", 0)

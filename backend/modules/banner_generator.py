@@ -1,5 +1,6 @@
 from __future__ import annotations
 import base64
+import time
 import uuid
 import httpx
 from openai import OpenAI
@@ -51,6 +52,9 @@ def generate_banner(prompt: dict, banner_size: str = "1200x628") -> dict:
                 n=1,
             )
 
+            if not response.data:
+                raise RuntimeError("API returned empty image list")
+
             img_data = _fetch_image_bytes(response.data[0])
 
             banner_id = f"BN{str(uuid.uuid4())[:8].upper()}"
@@ -71,6 +75,8 @@ def generate_banner(prompt: dict, banner_size: str = "1200x628") -> dict:
         except Exception as e:
             last_error = e
             print(f"[BannerGen] Attempt {attempt + 1} failed: {type(e).__name__}: {e}")
+            if attempt < 2:
+                time.sleep(2 ** attempt)  # 1s then 2s before retrying
 
     raise RuntimeError(f"Banner generation failed: {type(last_error).__name__}: {last_error}")
 

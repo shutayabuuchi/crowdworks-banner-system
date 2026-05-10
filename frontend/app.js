@@ -264,11 +264,15 @@ function selectJob(jobId) {
   renderJobList(state.filteredJobs);
 }
 
+let _jobDetailSeq = 0;
 async function openJobDetail(jobId) {
+  const seq = ++_jobDetailSeq;
   try {
     const job = await fetchJob(jobId);
+    if (seq !== _jobDetailSeq) return; // superseded by a newer click
     state.selectedJob = job;
   } catch (_) {
+    if (seq !== _jobDetailSeq) return;
     state.selectedJob = state.jobs.find(j => j.job_id === jobId) || null;
   }
   renderJobList(state.filteredJobs);
@@ -428,6 +432,7 @@ async function runFullPipeline(jobId) {
 }
 
 async function runBulkPipeline() {
+  if (state.bulkRunning) return; // guard against double-submit
   const ids = [...state.selectedJobIds].filter(id => state.jobs.some(job => job.job_id === id));
   if (ids.length === 0) {
     showToast('warning', '案件を選択してください');
@@ -603,15 +608,7 @@ function renderPromptList(prompts, jobId) {
         <div class="prompt-char-count" id="cc-${p.prompt_id}">${p.text_prompt.length} 文字</div>
       </div>`;
   }).join('');
-
-  // 文字数カウント
-  prompts.forEach(p => {
-    const ta = document.getElementById(`ta-${p.prompt_id}`);
-    const cc = document.getElementById(`cc-${p.prompt_id}`);
-    if (ta && cc) {
-      ta.addEventListener('input', () => { cc.textContent = `${ta.value.length} 文字`; });
-    }
-  });
+  // char count handled by delegated listener on #promptList (set up in DOMContentLoaded)
 }
 
 async function savePrompt(promptId) {
@@ -637,7 +634,7 @@ async function generateFromSinglePrompt(promptId, jobId) {
       try { await updatePrompt(promptId, ta.value); p.text_prompt = ta.value; } catch (_) {}
     }
   }
-  showToast('info', 'バナー生成中', 'DALL-E 3 でバナーを生成しています...');
+  showToast('info', 'バナー生成中', 'gpt-image-1 でバナーを生成しています...');
   try {
     // 1枚だけ生成するためにバックエンドへ jobId 送信（現状は全プロンプト実行）
     // 個別生成エンドポイントがあればそちらを使う
@@ -947,7 +944,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btn = document.getElementById('btnGenerateFromPrompts');
     btnLoading(btn, true, '生成中...');
     try {
-      showToast('info', 'バナー生成中', 'DALL-E 3 でバナーを生成しています...');
+      showToast('info', 'バナー生成中', 'gpt-image-1 でバナーを生成しています...');
       const banners = await generateBanners(jobId);
       state.allBanners = banners;
       renderBannerGrid(banners, jobId);
@@ -988,6 +985,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // ESC
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeDetailPanel(); closeImageModal(); }
+  });
+
+  // Prompt textarea char count — delegated so re-renders don't leak listeners
+  document.getElementById('promptList').addEventListener('input', e => {
+    if (e.target.classList.contains('prompt-textarea')) {
+      const promptId = e.target.id.replace('ta-', '');
+      const cc = document.getElementById(`cc-${promptId}`);
+      if (cc) cc.textContent = `${e.target.value.length} 文字`;
+    }
   });
 
   // Boot
