@@ -19,6 +19,14 @@ def save_job(job: dict) -> dict:
     return result.data[0] if result.data else {}
 
 
+def save_jobs(jobs: list[dict]) -> list[dict]:
+    if not jobs:
+        return []
+    client = get_client()
+    result = client.table("jobs").upsert(jobs).execute()
+    return result.data or []
+
+
 def get_unprocessed_jobs() -> list:
     client = get_client()
     result = client.table("jobs").select("*").eq("processed", False).execute()

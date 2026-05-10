@@ -7,7 +7,7 @@ import re
 import requests
 from bs4 import BeautifulSoup
 from backend.config import CROWDWORKS_SEARCH_URL, BANNER_CATEGORY_PARAMS, SCRAPE_INTERVAL_SECONDS
-from backend.db.supabase_client import save_job, get_job
+from backend.db.supabase_client import save_jobs
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (compatible; BannerSystemBot/1.0; educational purposes)",
@@ -207,32 +207,21 @@ def scrape_job_detail(job: dict) -> dict:
 def run_scraper() -> dict:
     """Main scraper entry point. Scrape new banner jobs and save to DB."""
     print("[Scraper] Starting job scrape...")
-    new_count = 0
-    skip_count = 0
+    scrape_count = 0
 
-    for page in range(1, 4):  # scrape up to 3 pages
+    for page in range(1, 2):  # keep serverless execution short and predictable
         jobs = scrape_job_list(page)
         if not jobs:
             break
 
-        for job in jobs:
-            # Skip duplicates
-            if get_job(job["job_id"]):
-                skip_count += 1
-                continue
-
-            if not is_banner_job(job["title"], job.get("description", "")):
-                # Fetch detail to check
-                job = scrape_job_detail(job)
-                if not is_banner_job(job["title"], job.get("description", "")):
-                    continue
-
-            if not job.get("description"):
-                job = scrape_job_detail(job)
-
-            save_job(job)
-            new_count += 1
+        banner_jobs = [
+            job for job in jobs
+            if is_banner_job(job["title"], job.get("description", ""))
+        ]
+        saved = save_jobs(banner_jobs)
+        scrape_count += len(saved)
+        for job in saved:
             print(f"[Scraper] Saved job: {job['job_id']} - {job['title'][:50]}")
 
-    print(f"[Scraper] Done. New: {new_count}, Skipped: {skip_count}")
-    return {"message": f"Scraping complete. New jobs: {new_count}, Skipped: {skip_count}"}
+    print(f"[Scraper] Done. Saved/updated: {scrape_count}")
+    return {"message": f"Scraping complete. Saved/updated jobs: {scrape_count}"}
