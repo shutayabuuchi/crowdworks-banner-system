@@ -63,7 +63,7 @@ def analyze_job(job_id: str) -> dict:
 
     prompt = ANALYSIS_PROMPT.format(
         title=job.get("title", ""),
-        description=job.get("description", "")[:2000],
+        description=job.get("description", ""),
         reward=job.get("reward", ""),
         requirements=", ".join(job.get("requirements", [])),
     )

@@ -90,7 +90,7 @@ def _parse_vue_job_list(soup: BeautifulSoup) -> list:
             "reward": _format_reward(offer.get("payment") or {}),
             "deadline": job_offer.get("expired_on"),
             "client_name": (offer.get("client") or {}).get("username"),
-            "description": (job_offer.get("description_digest") or "").replace("\r", "\n").strip()[:3000],
+            "description": (job_offer.get("description_digest") or "").replace("\r", "\n").strip(),
             "requirements": _requirements_with_competition_marker(job_offer),
             "attachments": [],
             "processed": False,
@@ -165,7 +165,8 @@ def scrape_job_list(page: int = 1) -> list:
 
 def scrape_job_detail(job: dict) -> dict:
     """Fetch and parse the detail page of a job."""
-    time.sleep(SCRAPE_INTERVAL_SECONDS)
+    if SCRAPE_INTERVAL_SECONDS > 0:
+        time.sleep(SCRAPE_INTERVAL_SECONDS)
     try:
         resp = requests.get(job["url"], headers=_request_headers(), timeout=15)
         resp.raise_for_status()
@@ -186,7 +187,7 @@ def scrape_job_detail(job: dict) -> dict:
         if data.get("description"):
             description_html = html.unescape(data["description"])
             description_text = BeautifulSoup(description_html, "html.parser").get_text(separator="\n", strip=True)
-            job["description"] = description_text[:3000]
+            job["description"] = description_text
         if data.get("validThrough"):
             job["deadline"] = data["validThrough"]
         organization = data.get("hiringOrganization") or {}
@@ -197,7 +198,7 @@ def scrape_job_detail(job: dict) -> dict:
     # Extract description
     desc_el = soup.select_one(".job_description, .description, [class*='description'], #job_description")
     if desc_el and not job.get("description"):
-        job["description"] = desc_el.get_text(separator="\n", strip=True)[:3000]
+        job["description"] = desc_el.get_text(separator="\n", strip=True)
 
     # Extract client name
     client_el = soup.select_one(".client_name, .employer, [class*='client']")
@@ -240,7 +241,8 @@ def run_scraper() -> dict:
             job for job in jobs
             if is_banner_job(job["title"], job.get("description", ""))
         ]
-        saved = save_jobs(banner_jobs)
+        detailed_jobs = [scrape_job_detail(job) for job in banner_jobs]
+        saved = save_jobs(detailed_jobs)
         scrape_count += len(saved)
         for job in saved:
             print(f"[Scraper] Saved job: {job['job_id']} - {job['title'][:50]}")

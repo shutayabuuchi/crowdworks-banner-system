@@ -30,4 +30,4 @@ BANNER_CATEGORY_PARAMS = {
     "order": "new",
     "keep_search_criteria": "true",
 }
-SCRAPE_INTERVAL_SECONDS = 10  # min interval between requests (terms of service)
+SCRAPE_INTERVAL_SECONDS = int(os.getenv("SCRAPE_INTERVAL_SECONDS", "0"))

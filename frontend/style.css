@@ -458,17 +458,6 @@ button,input,select { font-family:inherit; }
 }
 .btn-ghost:hover { background:var(--g50); border-color:var(--g400); }
 
-.btn-detail {
-  background:#111827;
-  color:#fff;
-  border:1px solid #111827;
-  box-shadow:0 1px 3px rgba(17,24,39,.18);
-}
-.btn-detail:hover {
-  background:#374151;
-  border-color:#374151;
-}
-
 .btn-sm { padding:5px 10px; font-size:12px; }
 .btn-sm svg { width:12px; height:12px; }
 .btn-icon { padding:7px; width:32px; height:32px; }
@@ -533,6 +522,7 @@ button,input,select { font-family:inherit; }
   transition:all var(--fast) var(--ease);
   cursor:pointer;
   box-shadow:var(--sh-xs);
+  width:100%;
 }
 
 .job-card:hover {
@@ -655,7 +645,7 @@ button,input,select { font-family:inherit; }
 }
 .job-card-icon svg { width:18px; height:18px; color:var(--brand); }
 
-.job-card-body { flex:1; min-width:0; }
+.job-card-body { flex:1 1 auto; min-width:0; }
 
 .job-card-title {
   font-size:13.5px; font-weight:700; color:var(--g900);
@@ -675,7 +665,7 @@ button,input,select { font-family:inherit; }
 .meta-item svg { width:11px; height:11px; }
 
 .job-url-link {
-  max-width:420px;
+  max-width:min(420px, 45vw);
   color:var(--brand);
   min-width:0;
 }
@@ -694,7 +684,8 @@ button,input,select { font-family:inherit; }
 }
 
 .job-card-actions {
-  display:flex; align-items:center; gap:6px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:flex-end;
+  gap:6px; flex:0 0 auto; margin-left:auto;
 }
 
 /* ===== Badges ===== */
