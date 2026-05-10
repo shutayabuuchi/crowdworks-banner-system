@@ -52,6 +52,7 @@ const state = {
   selectedJobIds: new Set(),
   selectedJob: null,
   analyzedJob: null,
+  prompts: [],
   banners: [],
   allBanners: [],
   selectedBanner: null,
@@ -82,15 +83,17 @@ async function apiFetch(path, opts = {}) {
   return res.json();
 }
 
-const fetchJobs       = ()          => apiFetch('/jobs/');
-const fetchJob        = id          => apiFetch(`/jobs/${id}`);
-const scrapeJobs      = ()          => apiFetch('/jobs/scrape', { method: 'POST' });
-const analyzeJob      = (id, opts = {})   => apiFetch(`/jobs/${id}/analyze`, { method: 'POST', ...opts });
-const generatePrompts = (body, opts = {}) => apiFetch('/prompts/generate', { method: 'POST', body, ...opts });
-const generateBanners = (jobId, opts = {}) => apiFetch('/banners/generate', { method: 'POST', body: { job_id: jobId }, ...opts });
-const fetchBanners    = jobId       => apiFetch(`/banners/${jobId}`);
-const updateBannerStatus = (id, s)  => apiFetch(`/banners/${id}/status`, { method: 'PATCH', body: { status: s } });
-const generateAppText = body        => apiFetch('/application_texts/generate', { method: 'POST', body });
+const fetchJobs          = ()              => apiFetch('/jobs/');
+const fetchJob           = id              => apiFetch(`/jobs/${id}`);
+const scrapeJobs         = ()              => apiFetch('/jobs/scrape', { method: 'POST' });
+const analyzeJob         = (id, opts = {}) => apiFetch(`/jobs/${id}/analyze`, { method: 'POST', ...opts });
+const fetchPromptsForJob = jobId           => apiFetch(`/prompts/${jobId}`);
+const generatePrompts    = (body, opts={}) => apiFetch('/prompts/generate', { method: 'POST', body, ...opts });
+const updatePrompt       = (promptId, text)=> apiFetch(`/prompts/${promptId}`, { method: 'PUT', body: { text_prompt: text } });
+const generateBanners    = (jobId, opts={})=> apiFetch('/banners/generate', { method: 'POST', body: { job_id: jobId }, ...opts });
+const fetchBanners       = jobId           => apiFetch(`/banners/${jobId}`);
+const updateBannerStatus = (id, s)         => apiFetch(`/banners/${id}/status`, { method: 'PATCH', body: { status: s } });
+const generateAppText    = body            => apiFetch('/application_texts/generate', { method: 'POST', body });
 
 /* ===== Toast ===== */
 function showToast(type, title, message = '', duration = 4000) {
@@ -535,20 +538,115 @@ async function loadAllBanners() {
 
 async function loadBannersForJob(jobId) {
   const grid = document.getElementById('bannerGrid');
+  const promptSection = document.getElementById('promptSection');
+
   if (!jobId) {
-    grid.innerHTML = `<div class="empty-state"><div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z"/></svg></div><div class="empty-title">ジョブを選択してください</div></div>`;
+    if (promptSection) promptSection.style.display = 'none';
+    grid.innerHTML = `<div class="empty-state"><div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z"/></svg></div><div class="empty-title">案件を選択してください</div></div>`;
     return;
   }
-  grid.innerHTML = `<div class="loading-state"><span class="spinner spinner-lg"></span><span class="loading-text">バナーを読み込み中...</span></div>`;
+
+  grid.innerHTML = `<div class="loading-state"><span class="spinner spinner-lg"></span><span class="loading-text">読み込み中...</span></div>`;
+
+  // プロンプトとバナーを並行取得
+  const [prompts, banners] = await Promise.all([
+    fetchPromptsForJob(jobId).catch(() => []),
+    fetchBanners(jobId).catch(() => []),
+  ]);
+
+  state.prompts = prompts;
+  state.allBanners = banners;
+  state.bannerFilter = 'all';
+  document.querySelectorAll('[data-bfilter]').forEach(b => b.classList.toggle('active', b.dataset.bfilter === 'all'));
+
+  // プロンプトセクション表示
+  if (prompts.length > 0) {
+    promptSection.style.display = 'block';
+    renderPromptList(prompts, jobId);
+  } else {
+    promptSection.style.display = 'none';
+  }
+
+  renderBannerGrid(banners, jobId);
+}
+
+function renderPromptList(prompts, jobId) {
+  const tasteMeta = {
+    'モダン':    { cls: 'taste-modern',  label: 'モダン' },
+    'ポップ':    { cls: 'taste-pop',     label: 'ポップ' },
+    'エレガント':{ cls: 'taste-elegant', label: 'エレガント' },
+  };
+
+  const listEl = document.getElementById('promptList');
+  listEl.innerHTML = prompts.map(p => {
+    const meta = tasteMeta[p.design_taste] || { cls: 'taste-modern', label: p.design_taste };
+    return `
+      <div class="prompt-card" data-prompt-id="${p.prompt_id}">
+        <div class="prompt-card-header">
+          <div class="prompt-taste-label">
+            <span class="prompt-taste-dot ${meta.cls}"></span>
+            <span class="prompt-taste-name">${esc(meta.label)}</span>
+          </div>
+          <div class="prompt-card-actions">
+            <button class="btn btn-ghost btn-sm" onclick="savePrompt('${p.prompt_id}')">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293zM9 4a1 1 0 012 0v2H9V4z"/></svg>
+              保存
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="generateFromSinglePrompt('${p.prompt_id}', '${jobId}')">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"/></svg>
+              このテイストで生成
+            </button>
+          </div>
+        </div>
+        <textarea class="prompt-textarea" id="ta-${p.prompt_id}" rows="6">${esc(p.text_prompt)}</textarea>
+        <div class="prompt-char-count" id="cc-${p.prompt_id}">${p.text_prompt.length} 文字</div>
+      </div>`;
+  }).join('');
+
+  // 文字数カウント
+  prompts.forEach(p => {
+    const ta = document.getElementById(`ta-${p.prompt_id}`);
+    const cc = document.getElementById(`cc-${p.prompt_id}`);
+    if (ta && cc) {
+      ta.addEventListener('input', () => { cc.textContent = `${ta.value.length} 文字`; });
+    }
+  });
+}
+
+async function savePrompt(promptId) {
+  const ta = document.getElementById(`ta-${promptId}`);
+  if (!ta) return;
   try {
-    const banners = await fetchBanners(jobId);
-    state.allBanners = banners;
-    state.bannerFilter = 'all';
-    document.querySelectorAll('[data-bfilter]').forEach(b => b.classList.toggle('active', b.dataset.bfilter === 'all'));
-    renderBannerGrid(banners, jobId);
+    await updatePrompt(promptId, ta.value);
+    showToast('success', '保存しました', 'プロンプトを更新しました。');
+    // stateも更新
+    const p = state.prompts.find(p => p.prompt_id === promptId);
+    if (p) p.text_prompt = ta.value;
   } catch (e) {
-    showToast('error', 'バナー取得エラー', e.message);
-    grid.innerHTML = `<div class="empty-state"><div class="empty-title">エラー</div><div class="empty-desc">${esc(e.message)}</div></div>`;
+    showToast('error', '保存エラー', e.message);
+  }
+}
+
+async function generateFromSinglePrompt(promptId, jobId) {
+  // 変更があれば先に保存
+  const ta = document.getElementById(`ta-${promptId}`);
+  if (ta) {
+    const p = state.prompts.find(p => p.prompt_id === promptId);
+    if (p && p.text_prompt !== ta.value) {
+      try { await updatePrompt(promptId, ta.value); p.text_prompt = ta.value; } catch (_) {}
+    }
+  }
+  showToast('info', 'バナー生成中', 'DALL-E 3 でバナーを生成しています...');
+  try {
+    // 1枚だけ生成するためにバックエンドへ jobId 送信（現状は全プロンプト実行）
+    // 個別生成エンドポイントがあればそちらを使う
+    const banners = await generateBanners(jobId);
+    state.allBanners = banners;
+    renderBannerGrid(banners, jobId);
+    showToast('success', '生成完了', `${banners.length} 枚のバナーが生成されました。`);
+    await loadJobs();
+  } catch (e) {
+    showToast('error', '生成エラー', e.message);
   }
 }
 
@@ -791,7 +889,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const tab = item.dataset.tab;
       switchTab(tab);
       if (tab === 'banners') {
-        loadAllBanners();
+        populateBannerJobSelect();
       } else if (tab === 'applications') {
         populateAppTab();
       }
@@ -837,9 +935,35 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Banner job select (legacy, when present)
+  // Banner job select
   const bannerJobSelect = document.getElementById('bannerJobSelect');
   if (bannerJobSelect) bannerJobSelect.addEventListener('change', e => loadBannersForJob(e.target.value));
+
+  // Prompt section buttons
+  document.getElementById('btnGenerateFromPrompts').addEventListener('click', async () => {
+    const jobId = document.getElementById('bannerJobSelect').value;
+    if (!jobId) { showToast('warning', '案件を選択してください'); return; }
+    const btn = document.getElementById('btnGenerateFromPrompts');
+    btnLoading(btn, true, '生成中...');
+    try {
+      showToast('info', 'バナー生成中', 'DALL-E 3 でバナーを生成しています...');
+      const banners = await generateBanners(jobId);
+      state.allBanners = banners;
+      renderBannerGrid(banners, jobId);
+      showToast('success', '生成完了', `${banners.length} 枚のバナーが生成されました。`);
+      await loadJobs();
+    } catch (e) {
+      showToast('error', '生成エラー', e.message);
+    } finally {
+      btnLoading(btn, false);
+    }
+  });
+
+  document.getElementById('btnRefreshBanners').addEventListener('click', () => {
+    const jobId = document.getElementById('bannerJobSelect').value;
+    if (jobId) loadBannersForJob(jobId);
+    else populateBannerJobSelect();
+  });
 
   // Banner filter pills
   document.querySelectorAll('[data-bfilter]').forEach(btn => {

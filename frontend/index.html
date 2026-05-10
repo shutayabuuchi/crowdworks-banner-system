@@ -187,22 +187,58 @@
           </div>
         </div>
 
-        <div class="toolbar" style="margin-bottom:20px">
-          <div class="filter-pills" id="bannerFilterPills" style="align-self:flex-end">
-            <button class="filter-pill active" data-bfilter="all">すべて</button>
-            <button class="filter-pill" data-bfilter="generated">生成済み</button>
-            <button class="filter-pill" data-bfilter="approved">承認済み</button>
-            <button class="filter-pill" data-bfilter="rejected">却下</button>
+        <!-- ジョブ選択 -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-body" style="padding:14px 18px; display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:220px;">
+              <label class="form-label">案件を選択</label>
+              <select id="bannerJobSelect" class="select">
+                <option value="">-- 案件を選択してください --</option>
+              </select>
+            </div>
+            <button class="btn btn-ghost btn-sm" id="btnRefreshBanners" style="margin-bottom:1px">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg>
+              更新
+            </button>
           </div>
         </div>
 
-        <div id="bannerGrid">
-          <div class="empty-state">
-            <div class="empty-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg>
+        <!-- プロンプト確認・編集セクション -->
+        <div id="promptSection" style="display:none; margin-bottom:20px">
+          <div class="prompt-section-header">
+            <div>
+              <div class="prompt-section-title">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+                生成プロンプト確認・編集
+              </div>
+              <div class="prompt-section-desc">DALL-E 3 に渡すプロンプトです。編集してから「バナーを生成」してください。</div>
             </div>
-            <div class="empty-title">バナーがまだありません</div>
-            <div class="empty-desc">案件一覧からバナーを生成すると、案件ごとにここへ表示されます。</div>
+            <button class="btn btn-primary" id="btnGenerateFromPrompts">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"/></svg>
+              このプロンプトでバナーを生成
+            </button>
+          </div>
+          <div id="promptList" class="prompt-list"></div>
+        </div>
+
+        <!-- フィルター & バナーグリッド -->
+        <div id="bannerSection">
+          <div class="toolbar" style="margin-bottom:14px">
+            <div class="filter-pills">
+              <button class="filter-pill active" data-bfilter="all">すべて</button>
+              <button class="filter-pill" data-bfilter="generated">生成済み</button>
+              <button class="filter-pill" data-bfilter="approved">承認済み</button>
+              <button class="filter-pill" data-bfilter="rejected">却下</button>
+            </div>
+          </div>
+          <div id="bannerGrid">
+            <div class="empty-state">
+              <div class="empty-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z"/></svg>
+              </div>
+              <div class="empty-title">案件を選択してください</div>
+              <div class="empty-desc">上のセレクトから案件を選ぶとバナーが表示されます。</div>
+            </div>
           </div>
         </div>
 

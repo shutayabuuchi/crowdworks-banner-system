@@ -62,6 +62,12 @@ def save_prompt(prompt: dict) -> dict:
     return result.data[0] if result.data else {}
 
 
+def update_prompt(prompt_id: str, text_prompt: str) -> dict:
+    client = get_client()
+    result = client.table("prompts").update({"text_prompt": text_prompt}).eq("prompt_id", prompt_id).execute()
+    return result.data[0] if result.data else {}
+
+
 def delete_prompts_for_job(job_id: str):
     client = get_client()
     client.table("prompts").delete().eq("job_id", job_id).execute()
