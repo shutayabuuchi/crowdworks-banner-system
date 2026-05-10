@@ -217,7 +217,7 @@ function renderJobList(jobs) {
       isGenerating ? 'generating' : '',
     ].filter(Boolean).join(' ');
     return `
-      <div class="${cardClasses}" onclick="selectJob('${job.job_id}')">
+      <div class="${cardClasses}" role="button" tabindex="0" aria-label="${esc(job.title)}の詳細を開く" onclick="openJobDetail('${job.job_id}')" onkeydown="handleJobCardKey(event, '${job.job_id}')">
         <label class="job-select" onclick="event.stopPropagation();" title="一括生成に含める">
           <input type="checkbox" ${checked} ${state.bulkRunning ? 'disabled' : ''} onchange="toggleJobSelection('${job.job_id}', this.checked)">
           <span></span>
@@ -244,14 +244,16 @@ function renderJobList(jobs) {
           ${isGenerating ? `<span class="job-generating-badge"><span class="spinner"></span>${esc(state.bulkCurrentStep || '生成中')}</span>` : ''}
           <span class="badge ${job.processed ? 'badge-processed' : 'badge-pending'}">${job.processed ? '処理済み' : '未処理'}</span>
           ${bannerCount > 0 ? `<span class="badge badge-new">${bannerCount} バナー</span>` : ''}
-          <button class="btn btn-detail btn-sm" onclick="event.stopPropagation();openJobDetail('${job.job_id}')">
-            <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a7 7 0 100 14 7 7 0 000-14zM9 8a1 1 0 112 0v5a1 1 0 11-2 0V8zm1-3a1.25 1.25 0 100 2.5A1.25 1.25 0 0010 5z"/></svg>
-            詳細
-          </button>
         </div>
       </div>`;
   }).join('');
   updateBulkActions();
+}
+
+function handleJobCardKey(event, jobId) {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  event.preventDefault();
+  openJobDetail(jobId);
 }
 
 function selectJob(jobId) {

@@ -541,6 +541,16 @@ button,input,select { font-family:inherit; }
   transform:translateX(3px);
 }
 
+.job-card:focus-visible {
+  outline:2px solid var(--brand);
+  outline-offset:2px;
+}
+
+.job-card:hover .job-card-title,
+.job-card:focus-visible .job-card-title {
+  color:var(--brand-dark);
+}
+
 .job-card.selected {
   border-color:var(--brand);
   background:linear-gradient(135deg, #fafbff, #f5f3ff);
