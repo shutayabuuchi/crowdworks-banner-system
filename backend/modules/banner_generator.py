@@ -1,46 +1,47 @@
 from __future__ import annotations
+import base64
 import uuid
-import httpx
 from openai import OpenAI
 from backend.config import OPENAI_API_KEY
 from backend.db.supabase_client import save_banner, upload_file_to_storage
 
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
+# gpt-image-1 supports: 1024x1024 | 1536x1024 (landscape) | 1024x1536 (portrait)
 SIZE_MAP = {
-    "1200x628": "1792x1024",
-    "1200x630": "1792x1024",
-    "728x90": "1792x1024",
-    "300x250": "1024x1024",
-    "300x600": "1024x1792",
-    "160x600": "1024x1792",
-    "default": "1792x1024",
+    "1200x628":  "1536x1024",
+    "1200x630":  "1536x1024",
+    "1920x600":  "1536x1024",
+    "728x90":    "1536x1024",
+    "300x250":   "1024x1024",
+    "300x600":   "1024x1536",
+    "160x600":   "1024x1536",
+    "default":   "1536x1024",
 }
 
 
-def _get_dalle_size(banner_size: str) -> str:
+def _get_image_size(banner_size: str) -> str:
     return SIZE_MAP.get(banner_size, SIZE_MAP["default"])
 
 
 def generate_banner(prompt: dict, banner_size: str = "1200x628") -> dict:
-    """Generate a banner image using DALL-E 3 and store in Supabase."""
-    dalle_size = _get_dalle_size(banner_size)
+    """Generate a banner image using gpt-image-1 and store in Supabase."""
+    image_size = _get_image_size(banner_size)
 
     for attempt in range(3):
         try:
             response = openai_client.images.generate(
-                model="dall-e-3",
+                model="gpt-image-1",
                 prompt=prompt["text_prompt"][:4000],
-                size=dalle_size,
-                quality="standard",
+                size=image_size,
+                quality="high",
                 n=1,
             )
-            image_url_temp = response.data[0].url
 
-            # Download the image
-            img_data = httpx.get(image_url_temp, timeout=30).content
+            # gpt-image-1 returns base64-encoded image data
+            b64_data = response.data[0].b64_json
+            img_data = base64.b64decode(b64_data)
 
-            # Upload to Supabase storage
             banner_id = f"BN{str(uuid.uuid4())[:8].upper()}"
             path = f"{prompt['job_id']}/{banner_id}.png"
             storage_url = upload_file_to_storage("banners", path, img_data, "image/png")

@@ -570,22 +570,23 @@ async function loadBannersForJob(jobId) {
   renderBannerGrid(banners, jobId);
 }
 
-function renderPromptList(prompts, jobId) {
-  const tasteMeta = {
-    'モダン':    { cls: 'taste-modern',  label: 'モダン' },
-    'ポップ':    { cls: 'taste-pop',     label: 'ポップ' },
-    'エレガント':{ cls: 'taste-elegant', label: 'エレガント' },
-  };
+const TASTE_PALETTE = ['#6366f1', '#f59e0b', '#10b981', '#f43f5e', '#06b6d4', '#8b5cf6'];
 
+function renderPromptList(prompts, jobId) {
   const listEl = document.getElementById('promptList');
-  listEl.innerHTML = prompts.map(p => {
-    const meta = tasteMeta[p.design_taste] || { cls: 'taste-modern', label: p.design_taste };
+  listEl.innerHTML = prompts.map((p, i) => {
+    const color = TASTE_PALETTE[i % TASTE_PALETTE.length];
+    const [tasteName, tasteRationale] = p.design_taste.includes('|')
+      ? p.design_taste.split('|') : [p.design_taste, ''];
     return `
       <div class="prompt-card" data-prompt-id="${p.prompt_id}">
         <div class="prompt-card-header">
           <div class="prompt-taste-label">
-            <span class="prompt-taste-dot ${meta.cls}"></span>
-            <span class="prompt-taste-name">${esc(meta.label)}</span>
+            <span class="prompt-taste-dot" style="background:${color};flex-shrink:0"></span>
+            <div>
+              <span class="prompt-taste-name">${esc(tasteName)}</span>
+              ${tasteRationale ? `<div class="prompt-taste-rationale">${esc(tasteRationale)}</div>` : ''}
+            </div>
           </div>
           <div class="prompt-card-actions">
             <button class="btn btn-ghost btn-sm" onclick="savePrompt('${p.prompt_id}')">
@@ -594,7 +595,7 @@ function renderPromptList(prompts, jobId) {
             </button>
             <button class="btn btn-primary btn-sm" onclick="generateFromSinglePrompt('${p.prompt_id}', '${jobId}')">
               <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"/></svg>
-              このテイストで生成
+              この案でバナーを生成
             </button>
           </div>
         </div>
@@ -723,7 +724,7 @@ function renderBannerCard(banner) {
       </div>
       <div class="banner-footer">
         <div>
-          <div class="banner-taste">${esc(banner.design_taste || '—')}</div>
+          <div class="banner-taste">${esc((banner.design_taste || '').split('|')[0] || '—')}</div>
           <div style="margin-top:3px">${statusBadge}</div>
         </div>
         <div class="banner-actions">
