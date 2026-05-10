@@ -29,7 +29,7 @@ def save_jobs(jobs: list[dict]) -> list[dict]:
 
 def get_unprocessed_jobs() -> list:
     client = get_client()
-    result = client.table("jobs").select("*").eq("processed", False).execute()
+    result = client.table("jobs").select("*").eq("processed", False).contains("requirements", ["コンペ形式"]).execute()
     return result.data or []
 
 
@@ -95,7 +95,7 @@ def save_application_text(app_text: dict) -> dict:
 def get_all_jobs_with_banners() -> list:
     """Get all jobs with their banner counts for dashboard."""
     client = get_client()
-    result = client.table("jobs").select("*, banners(count)").execute()
+    result = client.table("jobs").select("*, banners(count)").contains("requirements", ["コンペ形式"]).execute()
     return result.data or []
 
 

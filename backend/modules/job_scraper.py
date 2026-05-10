@@ -53,6 +53,12 @@ def _format_reward(payment: dict) -> str:
     return "要確認"
 
 
+def _requirements_with_competition_marker(job_offer: dict) -> list[str]:
+    skills = job_offer.get("skills") or []
+    skill_names = [skill.get("name") for skill in skills if skill.get("name")]
+    return ["コンペ形式", *skill_names]
+
+
 def _parse_vue_job_list(soup: BeautifulSoup) -> list:
     container = soup.select_one("#vue-container[data]")
     if not container:
@@ -85,7 +91,7 @@ def _parse_vue_job_list(soup: BeautifulSoup) -> list:
             "deadline": job_offer.get("expired_on"),
             "client_name": (offer.get("client") or {}).get("username"),
             "description": (job_offer.get("description_digest") or "").replace("\r", "\n").strip()[:3000],
-            "requirements": job_offer.get("skills") or [],
+            "requirements": _requirements_with_competition_marker(job_offer),
             "attachments": [],
             "processed": False,
         })
