@@ -148,7 +148,7 @@ function applyJobFilter() {
 
   state.filteredJobs = state.jobs.filter(j => {
     const matchSearch = !q || j.title.toLowerCase().includes(q) || (j.client_name || '').toLowerCase().includes(q);
-    const bannerCount = Array.isArray(j.banners) ? j.banners.length : 0;
+    const bannerCount = getBannerCount(j);
     const matchFilter =
       f === 'all'       ? true :
       f === 'pending'   ? !j.processed :
@@ -166,14 +166,22 @@ function updateFilterCounts() {
   document.getElementById('filterAllCount').textContent       = jobs.length;
   document.getElementById('filterPendingCount').textContent   = jobs.filter(j => !j.processed).length;
   document.getElementById('filterProcessedCount').textContent = jobs.filter(j => j.processed).length;
-  document.getElementById('filterBannerCount').textContent    = jobs.filter(j => Array.isArray(j.banners) && j.banners.length > 0).length;
+  document.getElementById('filterBannerCount').textContent    = jobs.filter(j => getBannerCount(j) > 0).length;
 }
 
 function updateStats(jobs) {
-  const bannerJobs = jobs.filter(j => Array.isArray(j.banners) && j.banners.length > 0).length;
+  const bannerJobs = jobs.filter(j => getBannerCount(j) > 0).length;
   document.getElementById('statTotal').textContent     = jobs.length;
   document.getElementById('statProcessed').textContent = jobs.filter(j => j.processed).length;
   document.getElementById('statBanners').textContent   = bannerJobs;
+}
+
+function getBannerCount(job) {
+  if (!Array.isArray(job?.banners)) return 0;
+  if (job.banners.length === 1 && typeof job.banners[0]?.count === 'number') {
+    return job.banners[0].count;
+  }
+  return job.banners.length;
 }
 
 function renderJobList(jobs) {
@@ -189,7 +197,7 @@ function renderJobList(jobs) {
   }
 
   el.innerHTML = jobs.map(job => {
-    const bannerCount = Array.isArray(job.banners) ? job.banners.length : 0;
+    const bannerCount = getBannerCount(job);
     const jobUrl = job.url && job.url !== '#' ? job.url : '';
     return `
       <div class="job-card${state.selectedJob?.job_id === job.job_id ? ' selected' : ''}" onclick="selectJob('${job.job_id}')">
