@@ -6,10 +6,10 @@ import uuid
 import re
 import requests
 from bs4 import BeautifulSoup
-from backend.config import CROWDWORKS_SEARCH_URL, BANNER_CATEGORY_PARAMS, SCRAPE_INTERVAL_SECONDS
+from backend.config import CROWDWORKS_COOKIE, CROWDWORKS_SEARCH_URL, BANNER_CATEGORY_PARAMS, SCRAPE_INTERVAL_SECONDS
 from backend.db.supabase_client import save_jobs
 
-HEADERS = {
+BASE_HEADERS = {
     "User-Agent": "Mozilla/5.0 (compatible; BannerSystemBot/1.0; educational purposes)",
     "Accept-Language": "ja-JP,ja;q=0.9",
 }
@@ -18,6 +18,13 @@ BANNER_KEYWORDS = [
     "バナー", "banner", "ロゴ", "logo", "イラスト", "チラシ", "フライヤー",
     "デザイン", "サムネ", "キャラクター", "アイコン"
 ]
+
+
+def _request_headers() -> dict:
+    headers = dict(BASE_HEADERS)
+    if CROWDWORKS_COOKIE:
+        headers["Cookie"] = CROWDWORKS_COOKIE
+    return headers
 
 
 def is_banner_job(title: str, description: str) -> bool:
@@ -31,6 +38,11 @@ def extract_job_id_from_url(url: str) -> str:
 
 
 def _format_reward(payment: dict) -> str:
+    competition = payment.get("competition_payment") or {}
+    competition_price = competition.get("competition_price")
+    if competition_price:
+        return f"{int(competition_price):,}円"
+
     fixed = payment.get("fixed_price_payment") or {}
     min_budget = fixed.get("min_budget")
     max_budget = fixed.get("max_budget")
@@ -59,6 +71,10 @@ def _parse_vue_job_list(soup: BeautifulSoup) -> list:
         job_id_raw = job_offer.get("id")
         if not job_id_raw:
             continue
+        if job_offer.get("status") != "released":
+            continue
+        if "competition_payment" not in (offer.get("payment") or {}):
+            continue
 
         href = f"https://crowdworks.jp/public/jobs/{job_id_raw}"
         jobs.append({
@@ -80,7 +96,7 @@ def scrape_job_list(page: int = 1) -> list:
     """Scrape one page of job listings from Crowdworks."""
     params = {**BANNER_CATEGORY_PARAMS, "page": page}
     try:
-        resp = requests.get(CROWDWORKS_SEARCH_URL, params=params, headers=HEADERS, timeout=15)
+        resp = requests.get(CROWDWORKS_SEARCH_URL, params=params, headers=_request_headers(), timeout=15)
         resp.raise_for_status()
     except requests.RequestException as e:
         print(f"[Scraper] Failed to fetch job list page {page}: {e}")
@@ -145,7 +161,7 @@ def scrape_job_detail(job: dict) -> dict:
     """Fetch and parse the detail page of a job."""
     time.sleep(SCRAPE_INTERVAL_SECONDS)
     try:
-        resp = requests.get(job["url"], headers=HEADERS, timeout=15)
+        resp = requests.get(job["url"], headers=_request_headers(), timeout=15)
         resp.raise_for_status()
     except requests.RequestException as e:
         print(f"[Scraper] Failed to fetch job detail {job['url']}: {e}")

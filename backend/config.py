@@ -12,6 +12,7 @@ SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+CROWDWORKS_COOKIE = os.getenv("CROWDWORKS_COOKIE", "")
 APP_HOST = os.getenv("APP_HOST", "0.0.0.0")
 APP_PORT = int(os.getenv("APP_PORT", "8000"))
 CORS_ORIGINS = [
@@ -25,6 +26,7 @@ CROWDWORKS_SEARCH_URL = "https://crowdworks.jp/public/jobs/search"
 # Category IDs for banner/logo design on Crowdworks
 BANNER_CATEGORY_PARAMS = {
     "category_id": "18",  # デザイン > ロゴ・バナー・イラスト > バナー作成・バナーデザイン
+    "payment_type": "competition",
     "order": "new",
     "keep_search_criteria": "true",
 }
