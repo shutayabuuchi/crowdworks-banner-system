@@ -34,9 +34,17 @@ frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "fronte
 if os.path.exists(frontend_path):
     app.mount("/static", StaticFiles(directory=frontend_path), name="static")
 
-    @app.get("/")
+    @app.api_route("/", methods=["GET", "HEAD"])
     async def serve_frontend():
         return FileResponse(os.path.join(frontend_path, "index.html"))
+
+    @app.api_route("/style.css", methods=["GET", "HEAD"])
+    async def serve_legacy_stylesheet():
+        return FileResponse(os.path.join(frontend_path, "style.css"), media_type="text/css")
+
+    @app.api_route("/app.js", methods=["GET", "HEAD"])
+    async def serve_legacy_script():
+        return FileResponse(os.path.join(frontend_path, "app.js"), media_type="text/javascript")
 
 
 @app.get("/health")
