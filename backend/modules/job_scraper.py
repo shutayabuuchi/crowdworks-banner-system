@@ -233,7 +233,6 @@ def run_scraper() -> dict:
             save_job(job)
             new_count += 1
             print(f"[Scraper] Saved job: {job['job_id']} - {job['title'][:50]}")
-            time.sleep(SCRAPE_INTERVAL_SECONDS)
 
     print(f"[Scraper] Done. New: {new_count}, Skipped: {skip_count}")
     return {"message": f"Scraping complete. New jobs: {new_count}, Skipped: {skip_count}"}

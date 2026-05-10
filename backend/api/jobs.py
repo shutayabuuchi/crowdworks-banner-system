@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException
 from backend.modules.job_scraper import run_scraper
 from backend.modules.job_analyzer import analyze_job
 from backend.db.supabase_client import get_job, get_unprocessed_jobs, get_all_jobs_with_banners, mark_job_processed
@@ -7,9 +7,8 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
 @router.post("/scrape")
-async def scrape_jobs(background_tasks: BackgroundTasks):
-    background_tasks.add_task(run_scraper)
-    return {"message": "Scraping initiated successfully."}
+async def scrape_jobs():
+    return run_scraper()
 
 
 @router.get("/")
