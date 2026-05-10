@@ -1,5 +1,5 @@
 /* ===== Config ===== */
-const API_BASE = 'http://localhost:8000';
+const API_BASE = window.APP_CONFIG?.API_BASE || window.location.origin || 'http://localhost:8000';
 
 /* ===== Demo Data ===== */
 const DEMO_JOBS = [
@@ -190,6 +190,7 @@ function renderJobList(jobs) {
 
   el.innerHTML = jobs.map(job => {
     const bannerCount = Array.isArray(job.banners) ? job.banners.length : 0;
+    const jobUrl = job.url && job.url !== '#' ? job.url : '';
     return `
       <div class="job-card${state.selectedJob?.job_id === job.job_id ? ' selected' : ''}" onclick="selectJob('${job.job_id}')">
         <div class="job-card-icon">
@@ -204,6 +205,10 @@ function renderJobList(jobs) {
             </span>
             ${job.deadline ? `<span class="meta-item"><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>${esc(job.deadline)}</span>` : ''}
             ${job.client_name ? `<span class="meta-item">${esc(job.client_name)}</span>` : ''}
+            ${jobUrl ? `<a class="meta-item job-url-link" href="${esc(jobUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation();" title="${esc(jobUrl)}">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
+              <span>${esc(jobUrl)}</span>
+            </a>` : ''}
           </div>
         </div>
         <div class="job-card-actions">

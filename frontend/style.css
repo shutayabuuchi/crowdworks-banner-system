@@ -516,6 +516,25 @@ button,input,select { font-family:inherit; }
 }
 .meta-item svg { width:11px; height:11px; }
 
+.job-url-link {
+  max-width:420px;
+  color:var(--brand);
+  min-width:0;
+}
+
+.job-url-link:hover {
+  color:var(--brand-dark);
+  text-decoration:none;
+}
+
+.job-url-link span {
+  display:block;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  min-width:0;
+}
+
 .job-card-actions {
   display:flex; align-items:center; gap:6px; flex-shrink:0;
 }
