@@ -35,8 +35,8 @@ def get_unprocessed_jobs() -> list:
 
 def get_job(job_id: str) -> Optional[dict]:
     client = get_client()
-    result = client.table("jobs").select("*").eq("job_id", job_id).single().execute()
-    return result.data
+    result = client.table("jobs").select("*").eq("job_id", job_id).limit(1).execute()
+    return result.data[0] if result.data else None
 
 
 def mark_job_processed(job_id: str):
@@ -52,8 +52,8 @@ def save_analyzed_job(analyzed: dict) -> dict:
 
 def get_analyzed_job(job_id: str) -> Optional[dict]:
     client = get_client()
-    result = client.table("analyzed_jobs").select("*").eq("job_id", job_id).single().execute()
-    return result.data
+    result = client.table("analyzed_jobs").select("*").eq("job_id", job_id).limit(1).execute()
+    return result.data[0] if result.data else None
 
 
 def save_prompt(prompt: dict) -> dict:
