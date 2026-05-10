@@ -61,6 +61,11 @@ const state = {
   jobFilter: 'all',
   jobSearch: '',
   bannerFilter: 'all',
+  bulkRunning: false,
+  bulkCancelRequested: false,
+  bulkCurrentJobId: null,
+  bulkCurrentStep: '',
+  bulkController: null,
 };
 
 /* ===== API ===== */
@@ -80,9 +85,9 @@ async function apiFetch(path, opts = {}) {
 const fetchJobs       = ()          => apiFetch('/jobs/');
 const fetchJob        = id          => apiFetch(`/jobs/${id}`);
 const scrapeJobs      = ()          => apiFetch('/jobs/scrape', { method: 'POST' });
-const analyzeJob      = id          => apiFetch(`/jobs/${id}/analyze`, { method: 'POST' });
-const generatePrompts = body        => apiFetch('/prompts/generate', { method: 'POST', body });
-const generateBanners = jobId       => apiFetch('/banners/generate', { method: 'POST', body: { job_id: jobId } });
+const analyzeJob      = (id, opts = {})   => apiFetch(`/jobs/${id}/analyze`, { method: 'POST', ...opts });
+const generatePrompts = (body, opts = {}) => apiFetch('/prompts/generate', { method: 'POST', body, ...opts });
+const generateBanners = (jobId, opts = {}) => apiFetch('/banners/generate', { method: 'POST', body: { job_id: jobId }, ...opts });
 const fetchBanners    = jobId       => apiFetch(`/banners/${jobId}`);
 const updateBannerStatus = (id, s)  => apiFetch(`/banners/${id}/status`, { method: 'PATCH', body: { status: s } });
 const generateAppText = body        => apiFetch('/application_texts/generate', { method: 'POST', body });
@@ -204,10 +209,17 @@ function renderJobList(jobs) {
     const bannerCount = getBannerCount(job);
     const jobUrl = job.url && job.url !== '#' ? job.url : '';
     const checked = state.selectedJobIds.has(job.job_id) ? 'checked' : '';
+    const isGenerating = state.bulkCurrentJobId === job.job_id;
+    const cardClasses = [
+      'job-card',
+      state.selectedJob?.job_id === job.job_id ? 'selected' : '',
+      checked ? 'queued' : '',
+      isGenerating ? 'generating' : '',
+    ].filter(Boolean).join(' ');
     return `
-      <div class="job-card${state.selectedJob?.job_id === job.job_id ? ' selected' : ''}${checked ? ' queued' : ''}" onclick="selectJob('${job.job_id}')">
+      <div class="${cardClasses}" onclick="selectJob('${job.job_id}')">
         <label class="job-select" onclick="event.stopPropagation();" title="一括生成に含める">
-          <input type="checkbox" ${checked} onchange="toggleJobSelection('${job.job_id}', this.checked)">
+          <input type="checkbox" ${checked} ${state.bulkRunning ? 'disabled' : ''} onchange="toggleJobSelection('${job.job_id}', this.checked)">
           <span></span>
         </label>
         <div class="job-card-icon">
@@ -229,6 +241,7 @@ function renderJobList(jobs) {
           </div>
         </div>
         <div class="job-card-actions">
+          ${isGenerating ? `<span class="job-generating-badge"><span class="spinner"></span>${esc(state.bulkCurrentStep || '生成中')}</span>` : ''}
           <span class="badge ${job.processed ? 'badge-processed' : 'badge-pending'}">${job.processed ? '処理済み' : '未処理'}</span>
           ${bannerCount > 0 ? `<span class="badge badge-new">${bannerCount} バナー</span>` : ''}
           <button class="btn btn-detail btn-sm" onclick="event.stopPropagation();openJobDetail('${job.job_id}')">
@@ -315,15 +328,39 @@ function updateBulkActions() {
   const count = state.selectedJobIds.size;
   const countEl = document.getElementById('selectedJobCount');
   const btn = document.getElementById('btnBulkGenerate');
+  const cancelBtn = document.getElementById('btnBulkCancel');
+  const progress = document.getElementById('bulkProgress');
+  const progressText = document.getElementById('bulkProgressText');
   const selectVisible = document.getElementById('selectVisibleJobs');
   if (countEl) countEl.textContent = count;
-  if (btn) btn.disabled = count === 0;
+  if (btn) btn.disabled = count === 0 || state.bulkRunning;
+  if (cancelBtn) cancelBtn.style.display = state.bulkRunning ? 'inline-flex' : 'none';
+  if (progress) progress.style.display = state.bulkRunning ? 'inline-flex' : 'none';
+  if (progressText) progressText.textContent = state.bulkCurrentStep || '生成中...';
   if (selectVisible) {
+    selectVisible.disabled = state.bulkRunning;
     const visibleIds = state.filteredJobs.map(job => job.job_id);
     const selectedVisible = visibleIds.filter(id => state.selectedJobIds.has(id)).length;
     selectVisible.checked = visibleIds.length > 0 && selectedVisible === visibleIds.length;
     selectVisible.indeterminate = selectedVisible > 0 && selectedVisible < visibleIds.length;
   }
+}
+
+function setBulkProgress(jobId, step) {
+  state.bulkCurrentJobId = jobId;
+  state.bulkCurrentStep = step;
+  updateBulkActions();
+  renderJobList(state.filteredJobs);
+}
+
+function cancelBulkPipeline() {
+  if (!state.bulkRunning) return;
+  state.bulkCancelRequested = true;
+  state.bulkCurrentStep = 'キャンセル中...';
+  if (state.bulkController) state.bulkController.abort();
+  updateBulkActions();
+  renderJobList(state.filteredJobs);
+  showToast('warning', 'キャンセルします', '現在の通信を止めて、一括生成を終了します。');
 }
 
 async function startScrape() {
@@ -395,33 +432,76 @@ async function runBulkPipeline() {
   }
 
   const btn = document.getElementById('btnBulkGenerate');
+  state.bulkRunning = true;
+  state.bulkCancelRequested = false;
+  state.bulkCurrentJobId = null;
+  state.bulkCurrentStep = `0/${ids.length} 生成準備中...`;
   btnLoading(btn, true, `0/${ids.length} 生成中...`);
+  updateBulkActions();
+  renderJobList(state.filteredJobs);
   const failures = [];
+  let completed = 0;
+  let canceled = false;
 
   for (let i = 0; i < ids.length; i++) {
+    if (state.bulkCancelRequested) {
+      canceled = true;
+      break;
+    }
+
     const jobId = ids[i];
     const job = state.jobs.find(j => j.job_id === jobId);
+    state.bulkController = new AbortController();
     btnLoading(btn, true, `${i + 1}/${ids.length} 生成中...`);
     showToast('info', `一括生成 ${i + 1}/${ids.length}`, job?.title || jobId, 2500);
     try {
-      const analyzed = await analyzeJob(jobId);
-      await generatePrompts(analyzed);
-      await generateBanners(jobId);
+      setBulkProgress(jobId, `${i + 1}/${ids.length} 分析中`);
+      const analyzed = await analyzeJob(jobId, { signal: state.bulkController.signal });
+
+      if (state.bulkCancelRequested) {
+        canceled = true;
+        break;
+      }
+
+      setBulkProgress(jobId, `${i + 1}/${ids.length} プロンプト生成中`);
+      await generatePrompts(analyzed, { signal: state.bulkController.signal });
+
+      if (state.bulkCancelRequested) {
+        canceled = true;
+        break;
+      }
+
+      setBulkProgress(jobId, `${i + 1}/${ids.length} バナー生成中`);
+      await generateBanners(jobId, { signal: state.bulkController.signal });
       state.selectedJobIds.delete(jobId);
+      completed++;
     } catch (e) {
+      if (e.name === 'AbortError' || state.bulkCancelRequested) {
+        canceled = true;
+        break;
+      }
       failures.push(`${job?.title || jobId}: ${e.message}`);
+    } finally {
+      state.bulkController = null;
     }
   }
 
+  state.bulkRunning = false;
+  state.bulkCancelRequested = false;
+  state.bulkCurrentJobId = null;
+  state.bulkCurrentStep = '';
+  state.bulkController = null;
   btnLoading(btn, false);
   await loadJobs();
   populateBannerJobSelect();
 
-  if (failures.length) {
-    showToast('warning', '一括生成が一部失敗しました', `${ids.length - failures.length}件完了 / ${failures.length}件失敗`, 7000);
+  if (canceled) {
+    showToast('warning', '一括生成をキャンセルしました', `${completed}件完了しました。`, 7000);
+  } else if (failures.length) {
+    showToast('warning', '一括生成が一部失敗しました', `${completed}件完了 / ${failures.length}件失敗`, 7000);
     console.warn('Bulk generation failures:', failures);
   } else {
-    showToast('success', '一括生成完了', `${ids.length}件のバナー生成まで完了しました。`);
+    showToast('success', '一括生成完了', `${completed}件のバナー生成まで完了しました。`);
     switchTab('banners');
   }
 }
@@ -678,6 +758,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnScrape').addEventListener('click', startScrape);
   document.getElementById('btnRefresh').addEventListener('click', loadJobs);
   document.getElementById('btnBulkGenerate').addEventListener('click', runBulkPipeline);
+  document.getElementById('btnBulkCancel').addEventListener('click', cancelBulkPipeline);
   document.getElementById('selectVisibleJobs').addEventListener('change', e => toggleVisibleJobs(e.target.checked));
 
   // Detail panel
