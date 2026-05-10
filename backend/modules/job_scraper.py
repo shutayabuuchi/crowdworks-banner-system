@@ -1,4 +1,6 @@
 from __future__ import annotations
+import html
+import json
 import time
 import uuid
 import re
@@ -28,6 +30,52 @@ def extract_job_id_from_url(url: str) -> str:
     return f"CW{match.group(1)}" if match else str(uuid.uuid4())[:8]
 
 
+def _format_reward(payment: dict) -> str:
+    fixed = payment.get("fixed_price_payment") or {}
+    min_budget = fixed.get("min_budget")
+    max_budget = fixed.get("max_budget")
+    if max_budget:
+        if min_budget:
+            return f"{int(min_budget):,}円〜{int(max_budget):,}円"
+        return f"〜{int(max_budget):,}円"
+    return "要確認"
+
+
+def _parse_vue_job_list(soup: BeautifulSoup) -> list:
+    container = soup.select_one("#vue-container[data]")
+    if not container:
+        return []
+
+    try:
+        data = json.loads(html.unescape(container.get("data", "")))
+    except json.JSONDecodeError as e:
+        print(f"[Scraper] Failed to parse embedded job JSON: {e}")
+        return []
+
+    jobs = []
+    offers = data.get("searchResult", {}).get("job_offers", [])
+    for offer in offers[:20]:
+        job_offer = offer.get("job_offer") or {}
+        job_id_raw = job_offer.get("id")
+        if not job_id_raw:
+            continue
+
+        href = f"https://crowdworks.jp/public/jobs/{job_id_raw}"
+        jobs.append({
+            "job_id": f"CW{job_id_raw}",
+            "url": href,
+            "title": (job_offer.get("title") or "Unknown")[:200],
+            "reward": _format_reward(offer.get("payment") or {}),
+            "deadline": job_offer.get("expired_on"),
+            "client_name": (offer.get("client") or {}).get("username"),
+            "description": (job_offer.get("description_digest") or "").replace("\r", "\n").strip()[:3000],
+            "requirements": job_offer.get("skills") or [],
+            "attachments": [],
+            "processed": False,
+        })
+    return jobs
+
+
 def scrape_job_list(page: int = 1) -> list:
     """Scrape one page of job listings from Crowdworks."""
     params = {**BANNER_CATEGORY_PARAMS, "page": page}
@@ -39,7 +87,9 @@ def scrape_job_list(page: int = 1) -> list:
         return []
 
     soup = BeautifulSoup(resp.text, "html.parser")
-    jobs = []
+    jobs = _parse_vue_job_list(soup)
+    if jobs:
+        return jobs
 
     # Crowdworks job cards - selectors may need adjustment if site changes
     job_cards = soup.select("li.job_item, article.job-item, .job_list_item, li[class*='job']")
@@ -103,9 +153,28 @@ def scrape_job_detail(job: dict) -> dict:
 
     soup = BeautifulSoup(resp.text, "html.parser")
 
+    for script in soup.select('script[type="application/ld+json"]'):
+        try:
+            data = json.loads(script.string or "")
+        except json.JSONDecodeError:
+            continue
+        if data.get("@type") != "JobPosting":
+            continue
+
+        if data.get("description"):
+            description_html = html.unescape(data["description"])
+            description_text = BeautifulSoup(description_html, "html.parser").get_text(separator="\n", strip=True)
+            job["description"] = description_text[:3000]
+        if data.get("validThrough"):
+            job["deadline"] = data["validThrough"]
+        organization = data.get("hiringOrganization") or {}
+        if organization.get("name"):
+            job["client_name"] = organization["name"][:100]
+        break
+
     # Extract description
     desc_el = soup.select_one(".job_description, .description, [class*='description'], #job_description")
-    if desc_el:
+    if desc_el and not job.get("description"):
         job["description"] = desc_el.get_text(separator="\n", strip=True)[:3000]
 
     # Extract client name

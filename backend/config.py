@@ -24,7 +24,7 @@ CROWDWORKS_BASE_URL = "https://crowdworks.jp"
 CROWDWORKS_SEARCH_URL = "https://crowdworks.jp/public/jobs/search"
 # Category IDs for banner/logo design on Crowdworks
 BANNER_CATEGORY_PARAMS = {
-    "category_id": "87",  # デザイン > バナー・ロゴ
+    "category_id": "18",  # デザイン > ロゴ・バナー・イラスト > バナー作成・バナーデザイン
     "order": "new",
     "keep_search_criteria": "true",
 }
