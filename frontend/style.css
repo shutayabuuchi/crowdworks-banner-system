@@ -710,6 +710,37 @@ button,input,select { font-family:inherit; }
   gap:16px;
 }
 
+.banner-job-section {
+  margin-bottom:24px;
+}
+
+.banner-job-header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:10px;
+  padding:12px 14px;
+  background:#fff;
+  border:1px solid var(--g200);
+  border-radius:var(--r-lg);
+  box-shadow:var(--sh-xs);
+}
+
+.banner-job-title {
+  font-size:14px;
+  font-weight:800;
+  color:var(--g900);
+  letter-spacing:-.01em;
+}
+
+.banner-job-meta {
+  margin-top:2px;
+  font-size:12px;
+  color:var(--g500);
+  font-weight:600;
+}
+
 .banner-card {
   background:#fff;
   border:1px solid var(--g200);

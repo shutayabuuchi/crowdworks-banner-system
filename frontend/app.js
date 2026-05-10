@@ -415,10 +415,8 @@ async function runFullPipeline(jobId) {
     showToast('success', '完了！', `${banners.length} 枚のバナーが生成されました。`);
     closeDetailPanel();
     switchTab('banners');
-    populateBannerJobSelect();
-    document.getElementById('bannerJobSelect').value = jobId;
-    loadBannersForJob(jobId);
     await loadJobs();
+    await loadAllBanners();
   } catch (e) {
     showToast('error', 'パイプラインエラー', e.message);
   } finally {
@@ -495,7 +493,7 @@ async function runBulkPipeline() {
   state.bulkController = null;
   btnLoading(btn, false);
   await loadJobs();
-  populateBannerJobSelect();
+  await loadAllBanners();
 
   if (canceled) {
     showToast('warning', '一括生成をキャンセルしました', `${completed}件完了しました。`, 7000);
@@ -505,14 +503,34 @@ async function runBulkPipeline() {
   } else {
     showToast('success', '一括生成完了', `${completed}件のバナー生成まで完了しました。`);
     switchTab('banners');
+    await loadAllBanners();
   }
 }
 
 /* ===== Banners ===== */
 function populateBannerJobSelect() {
   const sel = document.getElementById('bannerJobSelect');
+  if (!sel) return;
   sel.innerHTML = `<option value="">-- ジョブを選択 --</option>` +
     state.jobs.map(j => `<option value="${j.job_id}">${esc(j.title.substring(0,60))}</option>`).join('');
+}
+
+async function loadAllBanners() {
+  const grid = document.getElementById('bannerGrid');
+  grid.innerHTML = `<div class="loading-state"><span class="spinner spinner-lg"></span><span class="loading-text">バナーを読み込み中...</span></div>`;
+  try {
+    const groups = await Promise.all(state.jobs.map(async job => {
+      const banners = await fetchBanners(job.job_id);
+      return { job, banners: banners.map(b => ({ ...b, job_title: job.title, job_url: job.url })) };
+    }));
+    state.allBanners = groups.flatMap(group => group.banners);
+    state.bannerFilter = 'all';
+    document.querySelectorAll('[data-bfilter]').forEach(b => b.classList.toggle('active', b.dataset.bfilter === 'all'));
+    renderBannerGroups(groups);
+  } catch (e) {
+    showToast('error', 'バナー取得エラー', e.message);
+    grid.innerHTML = `<div class="empty-state"><div class="empty-title">エラー</div><div class="empty-desc">${esc(e.message)}</div></div>`;
+  }
 }
 
 async function loadBannersForJob(jobId) {
@@ -536,8 +554,38 @@ async function loadBannersForJob(jobId) {
 
 function applyBannerFilter() {
   const f = state.bannerFilter;
-  const filtered = f === 'all' ? state.allBanners : state.allBanners.filter(b => b.status === f);
-  renderBannerGrid(filtered, document.getElementById('bannerJobSelect').value);
+  const groups = state.jobs.map(job => ({
+    job,
+    banners: state.allBanners.filter(b => b.job_id === job.job_id && (f === 'all' || b.status === f)),
+  }));
+  renderBannerGroups(groups);
+}
+
+function renderBannerGroups(groups) {
+  const grid = document.getElementById('bannerGrid');
+  const visibleGroups = groups.filter(group => group.banners.length > 0);
+  if (visibleGroups.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z"/></svg></div>
+        <div class="empty-title">バナーがまだありません</div>
+        <div class="empty-desc">案件一覧で生成したバナーが、案件ごとにここへ表示されます。</div>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = visibleGroups.map(group => `
+    <section class="banner-job-section">
+      <div class="banner-job-header">
+        <div>
+          <div class="banner-job-title">${esc(group.job.title)}</div>
+          <div class="banner-job-meta">${esc(group.job.reward || '—')} ${group.job.client_name ? `・ ${esc(group.job.client_name)}` : ''}</div>
+        </div>
+        ${group.job.url ? `<a class="btn btn-ghost btn-sm" href="${esc(group.job.url)}" target="_blank" rel="noopener">案件を見る</a>` : ''}
+      </div>
+      <div class="banner-grid">${group.banners.map(b => renderBannerCard(b)).join('')}</div>
+    </section>
+  `).join('');
 }
 
 function renderBannerGrid(banners, jobId) {
@@ -596,8 +644,7 @@ async function approveBanner(id) {
   try {
     await updateBannerStatus(id, 'approved');
     showToast('success', '承認しました');
-    const jobId = document.getElementById('bannerJobSelect').value;
-    if (jobId) await loadBannersForJob(jobId);
+    await loadAllBanners();
   } catch (e) { showToast('error', 'エラー', e.message); }
 }
 
@@ -605,8 +652,7 @@ async function rejectBanner(id) {
   try {
     await updateBannerStatus(id, 'rejected');
     showToast('info', '却下しました');
-    const jobId = document.getElementById('bannerJobSelect').value;
-    if (jobId) await loadBannersForJob(jobId);
+    await loadAllBanners();
   } catch (e) { showToast('error', 'エラー', e.message); }
 }
 
@@ -624,7 +670,7 @@ async function runGenerateBannersOnly(jobId) {
     showToast('info', 'バナー生成中', 'DALL-E 3 でバナーを生成中...');
     const banners = await generateBanners(jobId);
     state.allBanners = banners;
-    renderBannerGrid(banners, jobId);
+    await loadAllBanners();
     showToast('success', '完了', `${banners.length} 枚のバナーが生成されました。`);
   } catch (e) {
     showToast('error', 'エラー', e.message);
@@ -745,11 +791,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const tab = item.dataset.tab;
       switchTab(tab);
       if (tab === 'banners') {
-        populateBannerJobSelect();
-        if (state.selectedJob) {
-          document.getElementById('bannerJobSelect').value = state.selectedJob.job_id;
-          loadBannersForJob(state.selectedJob.job_id);
-        }
+        loadAllBanners();
       } else if (tab === 'applications') {
         populateAppTab();
       }
@@ -795,8 +837,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Banner job select
-  document.getElementById('bannerJobSelect').addEventListener('change', e => loadBannersForJob(e.target.value));
+  // Banner job select (legacy, when present)
+  const bannerJobSelect = document.getElementById('bannerJobSelect');
+  if (bannerJobSelect) bannerJobSelect.addEventListener('change', e => loadBannersForJob(e.target.value));
 
   // Banner filter pills
   document.querySelectorAll('[data-bfilter]').forEach(btn => {

@@ -62,6 +62,11 @@ def save_prompt(prompt: dict) -> dict:
     return result.data[0] if result.data else {}
 
 
+def delete_prompts_for_job(job_id: str):
+    client = get_client()
+    client.table("prompts").delete().eq("job_id", job_id).execute()
+
+
 def get_prompts_for_job(job_id: str) -> list:
     client = get_client()
     result = client.table("prompts").select("*").eq("job_id", job_id).execute()

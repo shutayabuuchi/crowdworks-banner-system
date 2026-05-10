@@ -4,9 +4,7 @@ import base64
 import requests
 import anthropic
 from backend.config import ANTHROPIC_API_KEY
-from backend.db.supabase_client import (
-    get_job, save_analyzed_job, get_analyzed_job, upload_file_to_storage
-)
+from backend.db.supabase_client import get_job, save_analyzed_job, upload_file_to_storage
 
 claude = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
@@ -56,10 +54,6 @@ def analyze_job(job_id: str) -> dict:
     job = get_job(job_id)
     if not job:
         raise ValueError(f"Job {job_id} not found")
-
-    existing = get_analyzed_job(job_id)
-    if existing:
-        return existing
 
     prompt = ANALYSIS_PROMPT.format(
         title=job.get("title", ""),

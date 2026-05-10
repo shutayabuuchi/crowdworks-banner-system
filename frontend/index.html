@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Banner AI — クラウドワークス自動生成</title>
-  <link rel="stylesheet" href="/static/style.css?v=20260510-card-detail" />
+  <link rel="stylesheet" href="/static/style.css?v=20260510-banner-groups" />
 </head>
 <body>
 
@@ -188,12 +188,6 @@
         </div>
 
         <div class="toolbar" style="margin-bottom:20px">
-          <div style="flex:1; max-width:320px;">
-            <label class="form-label">ジョブを選択</label>
-            <select id="bannerJobSelect" class="select">
-              <option value="">-- ジョブを選択 --</option>
-            </select>
-          </div>
           <div class="filter-pills" id="bannerFilterPills" style="align-self:flex-end">
             <button class="filter-pill active" data-bfilter="all">すべて</button>
             <button class="filter-pill" data-bfilter="generated">生成済み</button>
@@ -207,8 +201,8 @@
             <div class="empty-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg>
             </div>
-            <div class="empty-title">ジョブを選択してください</div>
-            <div class="empty-desc">上のセレクトボックスからジョブを選ぶと、バナーが表示されます。</div>
+            <div class="empty-title">バナーがまだありません</div>
+            <div class="empty-desc">案件一覧からバナーを生成すると、案件ごとにここへ表示されます。</div>
           </div>
         </div>
 
@@ -392,6 +386,6 @@
 <!-- ===== Toast ===== -->
 <div class="toast-container" id="toastContainer"></div>
 
-<script src="/static/app.js?v=20260510-card-detail"></script>
+<script src="/static/app.js?v=20260510-banner-groups"></script>
 </body>
 </html>
