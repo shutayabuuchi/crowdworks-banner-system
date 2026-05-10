@@ -1,6 +1,7 @@
 from __future__ import annotations
 import base64
 import uuid
+import httpx
 from openai import OpenAI
 from backend.config import OPENAI_API_KEY
 from backend.db.supabase_client import save_banner, upload_file_to_storage
@@ -24,10 +25,22 @@ def _get_image_size(banner_size: str) -> str:
     return SIZE_MAP.get(banner_size, SIZE_MAP["default"])
 
 
+def _fetch_image_bytes(item) -> bytes:
+    """Extract image bytes from an API response item (b64_json or url)."""
+    if getattr(item, "b64_json", None):
+        return base64.b64decode(item.b64_json)
+    if getattr(item, "url", None):
+        resp = httpx.get(item.url, timeout=60)
+        resp.raise_for_status()
+        return resp.content
+    raise RuntimeError("API response contained neither b64_json nor url")
+
+
 def generate_banner(prompt: dict, banner_size: str = "1200x628") -> dict:
     """Generate a banner image using gpt-image-1 and store in Supabase."""
     image_size = _get_image_size(banner_size)
 
+    last_error: Exception | None = None
     for attempt in range(3):
         try:
             response = openai_client.images.generate(
@@ -38,9 +51,7 @@ def generate_banner(prompt: dict, banner_size: str = "1200x628") -> dict:
                 n=1,
             )
 
-            # gpt-image-1 returns base64-encoded image data
-            b64_data = response.data[0].b64_json
-            img_data = base64.b64decode(b64_data)
+            img_data = _fetch_image_bytes(response.data[0])
 
             banner_id = f"BN{str(uuid.uuid4())[:8].upper()}"
             path = f"{prompt['job_id']}/{banner_id}.png"
@@ -58,11 +69,10 @@ def generate_banner(prompt: dict, banner_size: str = "1200x628") -> dict:
             return banner
 
         except Exception as e:
-            print(f"[BannerGen] Attempt {attempt + 1} failed: {e}")
-            if attempt == 2:
-                raise RuntimeError(f"Banner generation failed after 3 attempts: {e}")
+            last_error = e
+            print(f"[BannerGen] Attempt {attempt + 1} failed: {type(e).__name__}: {e}")
 
-    raise RuntimeError("Banner generation failed")
+    raise RuntimeError(f"Banner generation failed: {type(last_error).__name__}: {last_error}")
 
 
 def generate_banners_for_job(job_id: str, prompts: list, banner_size: str = "1200x628") -> list:

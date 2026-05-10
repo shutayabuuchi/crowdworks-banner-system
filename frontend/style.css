@@ -199,23 +199,15 @@ button,input,select { font-family:inherit; }
 /* Content */
 .content-area {
   flex:1; overflow-y:auto; padding:24px;
-  display:flex; flex-direction:column;
+  overscroll-behavior-y: contain;
 }
 
 /* ===== Tabs ===== */
-.tab-panels { display:none; flex:1; flex-direction:column; min-height:0; }
+.tab-panels { display:none; }
 .tab-panels.active {
-  display:flex;
+  display:block;
   animation:tabIn .18s var(--ease);
 }
-
-/* Jobs tab: let job list grow to fill remaining space */
-#tab-jobs { flex-direction:column; }
-#tab-jobs .stats-row,
-#tab-jobs .toolbar,
-#tab-jobs .bulk-actions,
-#tab-jobs .notice { flex-shrink:0; }
-#tab-jobs .job-list { flex:1; min-height:120px; }
 
 @keyframes tabIn {
   from { opacity:0; transform:translateY(8px); }
